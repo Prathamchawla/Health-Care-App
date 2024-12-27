@@ -6,10 +6,7 @@
       "use": "@vercel/python"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ]
+  "hooks": {
+    "build": "pip install -U setuptools && pip list"
+  }
 }
