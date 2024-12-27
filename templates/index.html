@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Translation Web App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            background-color: #1b1b2f;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            text-align: center;
+            color: #ff6f61;
+            font-size: 2.5em;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 111, 97, 0.7), 0 0 10px rgba(255, 111, 97, 0.5);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(145deg, #202039, #181824);
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            border: 1px solid #2a2a40;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+            color: #ff6f61;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 2px solid #ff6f61;
+            border-radius: 10px;
+            font-size: 16px;
+            background-color: #ff6f61;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select {
+            background-color: #2a2a40;
+            color: #e0e0e0;
+            border: 2px solid #ff6f61;
+        }
+
+        button:hover {
+            background-color: #e55a4f;
+            box-shadow: 0 0 15px rgba(255, 111, 97, 0.5);
+        }
+
+        button:disabled {
+            background-color: #333;
+            border: 2px solid #444;
+            cursor: not-allowed;
+        }
+
+        .output-box {
+            background: #202039;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            font-size: 16px;
+            color: #e0e0e0;
+            border: 1px solid #2a2a40;
+        }
+
+        .output-title {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #ff6f61;
+        }
+
+        .error {
+            color: #ff4f4f;
+            font-weight: bold;
+        }
+
+        .point {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        #translation-status {
+            font-weight: bold;
+            color: #ff9f87;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Healthcare Translation Web App</h1>
+    <div class="container">
+        <!-- Voice Recording Section -->
+        <div>
+            <button id="start-record-btn">Start Recording</button>
+            <button id="stop-record-btn" disabled>Stop Recording</button>
+            <div id="record-status" class="output-box">Status: Not Recording</div>
+        </div>
+
+        <!-- Recorded Text Section -->
+        <div>
+            <label class="output-title">Recorded Text:</label>
+            <div id="recorded-text" class="output-box">The recorded text will appear here after processing.</div>
+        </div>
+
+        <!-- Enhanced Text Section -->
+        <div>
+            <label class="output-title">Enhancing Text with AI:</label>
+            <div id="enhanced-text" class="output-box">
+                <ul id="enhanced-text-list"></ul>
+            </div>
+        </div>
+
+        <!-- Translated Text Section -->
+        <div>
+            <label for="lang-select" class="output-title">Select Language for Translation:</label>
+            <select id="lang-select">
+                {% for lang, code in languages.items() %}
+                <option value="{{ code }}">{{ lang }}</option>
+                {% endfor %}
+            </select>
+            <button id="translate-btn" disabled>Translate</button>
+            <div id="translated-text" class="output-box">
+                <p id="translation-status">Translating... Please wait</p>
+                <ul id="translated-text-list"></ul>
+            </div>
+        </div>
+
+        <!-- Playback Section -->
+        <div>
+            <button id="playback-btn" disabled>Play Translated Audio</button>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            let recordedText = "";
+            let enhancedText = [];
+            let targetLang = "";
+
+            // Start Recording
+            $("#start-record-btn").click(function () {
+                $.post("/start_record", function (data) {
+                    if (data.success) {
+                        $("#record-status").text("Recording...");
+                        $("#start-record-btn").attr("disabled", true);
+                        $("#stop-record-btn").attr("disabled", false);
+                    } else {
+                        alert("Error: " + data.error);
+                    }
+                });
+            });
+
+            // Stop Recording and Automatically Enhance Text
+            $("#stop-record-btn").click(function () {
+                $.post("/stop_record", function (data) {
+                    if (data.success) {
+                        recordedText = data.recorded_text;
+                        enhancedText = data.enhanced_text;
+
+                        $("#record-status").text("Recording stopped.");
+                        $("#recorded-text").text(recordedText);
+
+                        // Display Enhanced Text
+                        const enhancedTextList = $("#enhanced-text-list");
+                        enhancedTextList.empty();
+                        enhancedText.forEach(point => {
+                            if (point.trim()) {
+                                enhancedTextList.append(`<li class="point">${point}</li>`);
+                            }
+                        });
+
+                        $("#stop-record-btn").attr("disabled", true);
+                        $("#start-record-btn").attr("disabled", false);
+                        $("#translate-btn").attr("disabled", false);
+                    } else {
+                        alert(data.error); // Show the error message
+                        $("#record-status").text("Recording stopped with an error.");
+                        $("#stop-record-btn").attr("disabled", true);
+                        $("#start-record-btn").attr("disabled", false); // Re-enable the Start Recording button
+                    }
+                }).fail(function () {
+                    alert("An unexpected error occurred. Please try again.");
+                    $("#record-status").text("Recording stopped with an error.");
+                    $("#stop-record-btn").attr("disabled", true);
+                    $("#start-record-btn").attr("disabled", false); // Re-enable the Start Recording button
+                });
+            });
+
+            // Translate Text
+            $("#translate-btn").click(function () {
+                targetLang = $("#lang-select").val();
+
+                // Show "Translating... Please wait"
+                $("#translation-status").show();
+
+                $.ajax({
+                    url: "/translate",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ text: enhancedText.join("\n"), lang: targetLang }),
+                    success: function (data) {
+                        if (data.success) {
+                            const translatedPoints = data.translated_text.split("\n");
+                            const translatedTextList = $("#translated-text-list");
+
+                            // Display Translated Text as Points
+                            translatedTextList.empty();
+                            translatedPoints.forEach(point => {
+                                if (point.trim()) {
+                                    translatedTextList.append(`<li class="point">${point}</li>`);
+                                }
+                            });
+
+                            $("#playback-btn").attr("disabled", false);
+                        } else {
+                            $("#translated-text").html(`<span class="error">${data.error}</span>`);
+                        }
+                    },
+                    error: function () {
+                        $("#translated-text").html(`<span class="error">An error occurred during translation.</span>`);
+                    },
+                    complete: function () {
+                        // Hide "Translating... Please wait"
+                        $("#translation-status").hide();
+                    }
+                });
+            });
+
+            // Playback Translated Text
+            $("#playback-btn").click(function () {
+                const translatedText = $("#translated-text-list").text();
+                $.ajax({
+                    url: "/playback",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ text: translatedText, lang: targetLang }),
+                    success: function (data) {
+                        if (!data.success) {
+                            alert("Error: " + data.error);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
