@@ -9,6 +9,4 @@ langchain-groq
 transformers
 torch
 torchvision
-dotenv
-uuid
 pygame
