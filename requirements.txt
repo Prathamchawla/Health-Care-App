@@ -1,4 +1,4 @@
-setuptools>=65.5.0
+gunicorn
 Flask==2.3.3
 playsound==1.2.2
 gTTS==2.3.1
